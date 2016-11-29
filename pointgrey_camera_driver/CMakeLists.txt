@@ -38,6 +38,9 @@ add_dependencies(PointGreyCamera ${PROJECT_NAME}_gencfg)
 add_library(PointGreyCameraNodelet src/nodelet.cpp)
 target_link_libraries(PointGreyCameraNodelet PointGreyCamera ${catkin_LIBRARIES})
 
+add_library(KilobotCameraNodelet src/kilobot_cam_nodelet.cpp)
+target_link_libraries(KilobotCameraNodelet PointGreyCamera ${catkin_LIBRARIES})
+
 add_library(PointGreyStereoCameraNodelet src/stereo_nodelet.cpp)
 target_link_libraries(PointGreyStereoCameraNodelet PointGreyCamera ${catkin_LIBRARIES})
 
@@ -45,6 +48,11 @@ add_executable(pointgrey_camera_node src/node.cpp)
 target_link_libraries(pointgrey_camera_node PointGreyCamera ${catkin_LIBRARIES})
 set_target_properties(pointgrey_camera_node
                       PROPERTIES OUTPUT_NAME camera_node PREFIX "")
+
+add_executable(kilobot_cam_node src/kilobot_cam_node.cpp)
+target_link_libraries(kilobot_cam_node PointGreyCamera ${catkin_LIBRARIES})
+set_target_properties(kilobot_cam_node
+                      PROPERTIES OUTPUT_NAME kilobot_cam_node PREFIX "")
 
 add_executable(pointgrey_stereo_node src/stereo_node.cpp)
 target_link_libraries(pointgrey_stereo_node PointGreyCamera ${catkin_LIBRARIES})
@@ -60,6 +68,7 @@ install(TARGETS
   PointGreyCamera
   PointGreyCameraNodelet
   PointGreyStereoCameraNodelet
+  KilobotCameraNodelet
   pointgrey_camera_node
   pointgrey_stereo_node
   pointgrey_list_cameras 

@@ -158,6 +158,8 @@ public:
   float getCameraTemperature();
 
   void setGain(double &gain);
+  
+  void setShutter(double shutter_s);
 
   void setBRWhiteBalance(bool auto_white_balance, uint16_t &blue, uint16_t &red);
 

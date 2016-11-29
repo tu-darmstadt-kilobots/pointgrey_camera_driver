@@ -173,6 +173,13 @@ void PointGreyCamera::setGain(double &gain)
   PointGreyCamera::setProperty(GAIN, false, gain);
 }
 
+void PointGreyCamera::setShutter(double shutter_s)
+{
+  // Set shutter time
+  double shutter_ms = 1000.0 * shutter_s; // Needs to be in milliseconds
+  PointGreyCamera::setProperty(SHUTTER, false, shutter_ms);
+}
+
 void PointGreyCamera::setBRWhiteBalance(bool auto_white_balance, uint16_t &blue, uint16_t &red)
 {
   PointGreyCamera::setWhiteBalance(auto_white_balance, blue, red);
