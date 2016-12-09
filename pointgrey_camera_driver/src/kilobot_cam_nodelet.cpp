@@ -49,28 +49,35 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include <dynamic_reconfigure/server.h> // Needed for the dynamic_reconfigure gui service to run
 
+#include <kilobots_ros_tracking_msgs/ImageExposureSequence.h> //Message type to publish an image sequence
+
 namespace pointgrey_camera_driver
 {
 
 class KilobotCameraNodelet: public nodelet::Nodelet
 {
 public:
-  KilobotCameraNodelet()
+  KilobotCameraNodelet():
+    exposure_time_idx_(0)
   {
-    exposure_times_.push_back(0.0005);
-    exposure_times_.push_back(0.001);
-    exposure_times_.push_back(0.002);
-    exposure_times_.push_back(0.004);
-    exposure_times_.push_back(0.005);
-    exposure_times_.push_back(0.008);
-    exposure_times_.push_back(0.016);
-    exposure_times_.push_back(0.03);
-    exposure_times_.push_back(0.05);
-    exposure_times_.push_back(0.07);
-    exposure_times_.push_back(0.09);
-    exposure_times_.push_back(0.1);
+    exposure_times_.push_back(0.000512);
+    exposure_times_.push_back(0.001024);
+    exposure_times_.push_back(0.002032);
+    exposure_times_.push_back(0.00408);
+    exposure_times_.push_back(0.005088);
+    exposure_times_.push_back(0.008144);
+    exposure_times_.push_back(0.016304);
+    exposure_times_.push_back(0.03056);
+    exposure_times_.push_back(0.0589263);
+    exposure_times_.push_back(0.107168);
+    exposure_times_.push_back(0.127426);
+    exposure_times_.push_back(0.127426);
+    exposure_times_.push_back(0.127426);
     exposure_times_.push_back(0.15);
     exposure_times_.push_back(0.2);
+    exposure_times_.push_back(0.25);
+    //exposure_times_.push_back(0.3);
+
   }
 
   ~KilobotCameraNodelet()
@@ -162,16 +169,38 @@ private:
     }
   }
 
+  int getNextIndex(int current_index)
+  {
+    current_index++;
+
+    if (current_index == exposure_times_.size())
+      current_index = 0;
+    else if (current_index < 0)
+      current_index = exposure_times_.size() + current_index;
+
+    return current_index;
+  }
+
   float getNextExposureTime()
   {
-    exposure_time_idx_++;
-
-    if (exposure_time_idx_ == exposure_times_.size())
-      exposure_time_idx_ = 0;
-
+    exposure_time_idx_ = getNextIndex(exposure_time_idx_);
     return exposure_times_[exposure_time_idx_];
   }
 
+  //returns shutter time in seconds, return 0.0s if shutterCount has overflow
+  float getShutterTimeFromEmbeddedInfo(uint shutter_count)
+  {
+    // subtract 0xC2000000 to keep only the 12 lowest bits
+    int shutter_count_abs = shutter_count - 3254779904;
+
+    if (shutter_count_abs == 4095)
+      return 0.0;
+    else if (shutter_count_abs <= 2048)
+      return 0.016 * shutter_count_abs / 1000.0;
+    else
+      // slope is different for values >=2048
+      return (0.04711138251 * shutter_count_abs - 64.31711138) / 1000.0;
+  }
 
   /*!
   * \brief Connection callback to only do work when someone is listening.
@@ -312,6 +341,8 @@ private:
                updater_,
                diagnostic_updater::FrequencyStatusParam(&min_freq_, &max_freq_, freq_tolerance, window_size),
                diagnostic_updater::TimeStampStatusParam(min_acceptable, max_acceptable)));
+
+    seq_pub_ = nh.advertise<kilobots_ros_tracking_msgs::ImageExposureSequence>("/image_exposure_sequence", 1);
   }
 
   /*!
@@ -437,6 +468,11 @@ private:
             NODELET_INFO("Started camera.");
 
             state = STARTED;
+
+            exp_time_ = exposure_times_[0];
+            pg_.setShutter(exp_time_);
+
+            sleep(1);
           }
           catch(std::runtime_error& e)
           {
@@ -453,13 +489,23 @@ private:
             // Get the image from the camera library
             NODELET_DEBUG("Starting a new grab from camera.");
 
-            float exp_time = getNextExposureTime();
-
-            ROS_INFO("current exp time: %f", exp_time);
-
-            pg_.setShutter(exp_time);
+            float shutter_time = getShutterTimeFromEmbeddedInfo(pg_.getShutterUnshifted());
 
             pg_.grabImage(wfov_image->image, frame_id_);
+            pg_.setShutter(exp_time_);
+
+            // check if shutter count overflow occured, and estimate the shutter time if needed
+            if (std::abs(shutter_time) < 1e-5)
+            {
+              int est_exp_time_index = getNextIndex(exposure_time_idx_ -4);
+
+              shutter_time = exposure_times_[est_exp_time_index];
+            }
+
+            imgs_.exposure_times.push_back(shutter_time);
+            imgs_.images.push_back(sensor_msgs::Image(wfov_image->image));
+
+            exp_time_ = getNextExposureTime();
 
             // Set other values
             wfov_image->header.frame_id = frame_id_;
@@ -493,10 +539,21 @@ private:
             pub_->publish(wfov_image);
 
             // Publish the message using standard image transport
-            if(it_pub_.getNumSubscribers() > 0)
+            //if(it_pub_.getNumSubscribers() > 0)
             {
               sensor_msgs::ImagePtr image(new sensor_msgs::Image(wfov_image->image));
               it_pub_.publish(image, ci_);
+            }
+
+            if (imgs_.images.size() == exposure_times_.size())
+            {
+              //if(seq_pub_.getNumSubscribers() > 0)
+              //{
+                seq_pub_.publish(imgs_);
+             // }
+
+              imgs_.exposure_times.clear();
+              imgs_.images.clear();
             }
           }
           catch(CameraTimeoutException& e)
@@ -543,6 +600,7 @@ private:
   boost::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_; ///< Needed to initialize and keep the CameraInfoManager in scope.
   image_transport::CameraPublisher it_pub_; ///< CameraInfoManager ROS publisher
   boost::shared_ptr<diagnostic_updater::DiagnosedPublisher<wfov_camera_msgs::WFOVImage> > pub_; ///< Diagnosed publisher, has to be a pointer because of constructor requirements
+  ros::Publisher seq_pub_; ///< Image sequence ROS publisher
   ros::Subscriber sub_; ///< Subscriber for gain and white balance changes.
 
   boost::mutex connect_mutex_;
@@ -580,6 +638,8 @@ private:
   std::vector<float> exposure_times_; // [s]
   float current_exp_time_;
   int exposure_time_idx_;
+  float exp_time_;
+  kilobots_ros_tracking_msgs::ImageExposureSequence imgs_;
 
   /// Configuration:
   pointgrey_camera_driver::PointGreyConfig config_;

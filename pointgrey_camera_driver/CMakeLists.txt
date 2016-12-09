@@ -4,7 +4,7 @@ project(pointgrey_camera_driver)
 find_package(catkin REQUIRED COMPONENTS
   roscpp roslint nodelet sensor_msgs wfov_camera_msgs
   image_exposure_msgs camera_info_manager image_transport
-  dynamic_reconfigure diagnostic_updater)
+  dynamic_reconfigure diagnostic_updater kilobots_ros_tracking_msgs)
 
 generate_dynamic_reconfigure_options(
   cfg/PointGrey.cfg
@@ -63,7 +63,7 @@ add_executable(pointgrey_list_cameras src/list_cameras.cpp)
 target_link_libraries(pointgrey_list_cameras PointGreyCamera ${catkin_LIBRARIES})
 set_target_properties(pointgrey_list_cameras
                       PROPERTIES OUTPUT_NAME list_cameras PREFIX "")
- 
+
 install(TARGETS 
   PointGreyCamera
   PointGreyCameraNodelet

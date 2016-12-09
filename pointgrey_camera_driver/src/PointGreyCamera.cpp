@@ -1107,6 +1107,11 @@ uint PointGreyCamera::getShutter()
   return metadata_.embeddedShutter >> 20;
 }
 
+uint PointGreyCamera::getShutterUnshifted()
+{
+  return metadata_.embeddedShutter;
+}
+
 uint PointGreyCamera::getBrightness()
 {
   return metadata_.embeddedTimeStamp >> 20;

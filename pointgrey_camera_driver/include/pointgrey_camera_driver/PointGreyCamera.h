@@ -166,6 +166,7 @@ public:
   uint getGain();
 
   uint getShutter();
+  uint getShutterUnshifted();
 
   uint getBrightness();
 
