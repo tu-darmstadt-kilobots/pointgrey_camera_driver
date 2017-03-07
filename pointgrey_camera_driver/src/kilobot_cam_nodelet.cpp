@@ -62,22 +62,11 @@ public:
   {
     exposure_times_.push_back(0.000512);
     exposure_times_.push_back(0.001024);
-    exposure_times_.push_back(0.002032);
     exposure_times_.push_back(0.00408);
-    exposure_times_.push_back(0.005088);
-    exposure_times_.push_back(0.008144);
     exposure_times_.push_back(0.016304);
-    exposure_times_.push_back(0.03056);
     exposure_times_.push_back(0.0589263);
     exposure_times_.push_back(0.107168);
-    exposure_times_.push_back(0.127426);
-    exposure_times_.push_back(0.127426);
-    exposure_times_.push_back(0.127426);
-    exposure_times_.push_back(0.15);
-    exposure_times_.push_back(0.2);
     exposure_times_.push_back(0.25);
-    //exposure_times_.push_back(0.3);
-
   }
 
   ~KilobotCameraNodelet()
